@@ -1,0 +1,782 @@
+
+---
+
+## Problem 1
+
+Refer to the Prostate cancer data set in Homework 11. Serum prostate-specific antigen (PSA) was determined in 97 men with advanced prostate cancer. PSA is a well-established screening test for prostate cancer and the oncologists wanted to examine the correlation between level of PSA and a number of clinical measures for men who were about to undergo radical prostatectomy. The measures are cancer volume, prostate weight, patient age, the amount of benign prostatic hyperplasia, seminal vesicle invasion, capsular penetration, and Gleason score. (35 pts) 
+
+a-) Use 70% of the data for train data set and use remaining data (30% of data) for test data set (Please use set.seed(567)). (5 points)
+
+***Ans: ***
+
+
+
+```{R Prob 1a}
+Excel.Prostate.data = read.csv("Prostate Cancer.csv")
+#View(Excel.Prostate.data)
+#str(Excel.Prostate.data)
+
+
+#Normalized predictors using Min-Max Normalization: 
+normalize = function(x) {return((x - min(x)) / (max(x) - min(x)))}
+
+Prostate_norm = as.data.frame(lapply(Excel.Prostate.data, normalize))
+
+#To confirm that the normalization worked, we can see that the minimum and 
+#maximum strength are now zero and one, 
+summary(Prostate_norm$PSA.level)
+
+
+library(caret)
+
+#Splitting the data into training and testing samples:
+set.seed(567)
+
+#Do 70/30 split, 70 for Train Data and 30 for Test Data.
+DataSplit = createDataPartition( y = Prostate_norm$PSA.level, p = 0.7, list = FALSE )
+
+#Creating test and train data set
+TrainData = Prostate_norm[DataSplit, ]     
+TestData = Prostate_norm[-DataSplit, ] 
+#View(TrainData)
+
+
+#Checking if you have 70% test and 30% train 
+Num_observations = nrow(Prostate_norm)
+Num_observations_train = nrow(TrainData)
+Num_observations_test = nrow(TestData)
+
+cat("Total # of obs:", Num_observations, "\n")
+cat("Total # of train data obs:", Num_observations_train, "\n")
+cat("Total # of test data obs:", Num_observations_test, "\n")
+
+
+# Show dimensions
+dim(TrainData) # rows and columns
+dim(TestData)
+
+```
+
+## use the train data set for the questions below
+
+b-) Use neural network (NN) with two hidden layers with 6 neurons and 4 neurons respectively (hidden=c(6,4)) for predicting PSA. Assess the model performance. (10 pts)
+
+***Ans: ***
+The Neural Network has an error rate of 0.035248 and has taken 318 steps to converge. 
+
+The NN model fits the data very well--high correlation and R^2, along with low RMSE and MAE, indicate strong predictive accuracy with minimal error.
+
+Correlation of 0.9734906
+
+RMSE     Rsquared      MAE 
+8.414475 0.947684 5.744736 
+
+
+
+
+```{R Prob 1b}
+#install.packages("neuralnet")
+library(neuralnet)
+# WARNING: ### -------- TrainData & TestData is already normalized in 1a -----### w/o normalization, neural network will not work. 
+
+
+# Fit Neural Network with hidden layers 6 and 4
+NN_model = neuralnet(PSA.level ~ ., data = TrainData, hidden = c(6,4))
+
+plot(NN_model)
+
+### -------- Model Performance on Training Data -------- ###
+
+NN_model_results = compute(NN_model, TrainData[-c(1)])
+# we get rid of the first column, psa.level, response var
+predictTrain = NN_model_results$net.result
+
+# Correlation between predicted PSA and actual PSA
+cor(predictTrain, TrainData$PSA.level)
+
+
+# Scaling Back / going back to original data / Un-normalizing the current data:
+unnormalize = function(x) {return((x * (max(Excel.Prostate.data$PSA.level)) -min(Excel.Prostate.data$PSA.level)) + min(Excel.Prostate.data$PSA.level))}
+
+
+library(caret)
+Predicted_unnormalized = unnormalize(predictTrain)
+ModelTrain1 = data.frame(obs = Excel.Prostate.data$PSA.level[DataSplit], pred=Predicted_unnormalized)
+#calculate performance statistics
+defaultSummary(ModelTrain1)
+
+
+```
+
+c-) Use neural network (NN) with three hidden layers with 8 neurons, 10 neurons and 6 neurons respectively (hidden=c(8,10,6)) for predicting PSA with softplus activation function (softplus = function(x) { log(1 + exp(x)) }). Assess the model performance. (10 pts)
+
+***Ans: ***
+
+The Neural Network has an error rate of 0.012448 and has taken 839 steps to converge using the softplus activation function. 
+
+The NN model fits the data very well--high correlation and R^2, along with low RMSE and MAE, indicate strong predictive accuracy with minimal error.
+
+Correlation of 0.9907177
+
+RMSE      Rsquared       MAE 
+5.0238855 0.9815216 3.4511227 
+
+```{R Prob 1c}
+softplus = function(x) { log(1 + exp(x)) }
+
+NN_model_2 = neuralnet( PSA.level ~ ., data = TrainData, hidden = c(8,10,6), act.fct = softplus)
+
+plot(NN_model_2)
+
+### -------- Model Performance on Training Data -------- ###
+
+NN_model_results_2 = compute(NN_model_2, TrainData[-c(1)])
+predictTrain_2 = NN_model_results_2$net.result
+
+# Correlation between predicted PSA and actual PSA
+cor(predictTrain_2, TrainData$PSA.level)
+
+# Scaling Back / going back to original data / Un-normalizing the current data:
+unnormalize = function(x) {return((x * (max(Excel.Prostate.data$PSA.level)) -min(Excel.Prostate.data$PSA.level)) + min(Excel.Prostate.data$PSA.level))}
+
+
+library(caret)
+Predicted_unnormalized_2 = unnormalize(predictTrain_2)
+ModelTrain2 = data.frame(obs = Excel.Prostate.data$PSA.level[DataSplit], pred=Predicted_unnormalized_2)
+#calculate performance statistics
+defaultSummary(ModelTrain2)
+
+
+```
+
+d-) Based on the performances of the model on the train data set, which model would you choose? (5 pts)
+
+***Ans: ***
+
+Because RMSE and MAE are lower (indicating smaller prediction errors), and both R^2 and correlation are higher (indicating a stronger model fit), the neural network in part (c) outperforms the model in part (b).
+
+Therefore, the model in part (c) is the champion model for the training data. 
+
+b: Neuron Network (NN) with two hidden layers with 6 neurons and 4 
+neurons respectively: 
+
+Correlation: 0.9734906
+
+     RMSE     Rsquared      MAE 
+8.414475    0.947684      5.744736 
+
+
+c: Neuron Network (NN) with three hidden layers with 8 neurons, 10 neurons 
+and 6 neurons respectively with Softplus activation:
+
+Correlation: 0.9907177
+
+      RMSE  Rsquared       MAE 
+5.0238855  0.9815216 3.4511227  
+
+
+## use the test data set for the questions below
+
+e-) Assess the performance of the models built in parts b and c on the test data set. Which model would you choose? (5 pts)
+
+***Ans: ***
+
+Based on the test set performance, both neural networks show weak generalization (low correlations, high RMSE & MAE). Model 1 performs slightly better than Model 2 on all metrics, so Model 1 (from part b) would be preferred on the test data.
+
+B-->> Model 1: 
+
+Correlation: 0.3526541
+
+      RMSE   Rsquared        MAE 
+56.2346799  0.1243649 23.6905335 
+
+
+C-->> Model 2: 
+
+           
+Correlation 0.04802854
+
+        RMSE     Rsquared          MAE 
+56.448645863  0.002306741 24.031396583 
+
+
+
+```{R Prob 1e}
+### -------- B: MODEL 1: hidden = c(6,4), Performance on Training Data -------- ###
+
+NN_model_Test_results = compute(NN_model, TestData[-c(1)])
+predictTest = NN_model_Test_results$net.result
+
+# Correlation between predicted PSA and actual PSA
+cor(predictTest, TestData$PSA.level)
+
+
+# Scaling Back / going back to original data / Un-normalizing the current data:
+unnormalize = function(x) {return((x * (max(Excel.Prostate.data$PSA.level)) -min(Excel.Prostate.data$PSA.level)) + min(Excel.Prostate.data$PSA.level))}
+
+
+library(caret)
+Predicted_unnormalized_test = unnormalize(predictTest)
+# need to use --DataSplit for the test data 
+ModelTest1 = data.frame(obs = Excel.Prostate.data$PSA.level[-DataSplit], pred=Predicted_unnormalized_test)
+#calculate performance statistics
+defaultSummary(ModelTest1)
+
+
+### -------- C: MODEL 2: hidden = c(8,10,6), Softplus Performance on Training Data -------- ###
+cat("\n\n C-->> Model 2: \n\n")
+
+NN_model_Test_results_2 = compute(NN_model_2, TestData[-c(1)])
+predictTest_2 = NN_model_Test_results_2$net.result
+
+# Correlation between predicted PSA and actual PSA
+cor(predictTest_2, TestData$PSA.level)
+
+# Scaling Back / going back to original data / Un-normalizing the current data:
+unnormalize = function(x) {return((x * (max(Excel.Prostate.data$PSA.level)) -min(Excel.Prostate.data$PSA.level)) + min(Excel.Prostate.data$PSA.level))}
+
+
+library(caret)
+Predicted_unnormalized_test_2 = unnormalize(predictTest_2)
+ModelTest2 = data.frame(obs = Excel.Prostate.data$PSA.level[-DataSplit], pred=Predicted_unnormalized_test_2)
+#calculate performance statistics
+defaultSummary(ModelTest2)
+
+
+```
+
+## Problem 2
+
+Use the wbca data(copy and paste the following command into R console:library(faraway);data("pima")
+
+The National Institute of Diabetes and Digestive and Kidney Diseases conducted a study on 768 adult female Pima Indians living near Phoenix. The purpose of the study was to investigate factors related to diabetes. The data may be found in the the dataset pima. 
+
+Build a model to predict if a patient shows a positive sign of diabetes (test=1)
+
+The dataset contains the following variables
+
+pregnant: Number of times pregnant
+
+glucose:Plasma glucose concentration at 2 hours in an oral glucose tolerance test
+
+diastolic:Diastolic blood pressure (mm Hg)
+
+triceps:Triceps skin fold thickness (mm)
+
+insulin:2-Hour serum insulin (mu U/ml)
+
+bmi:Body mass index (weight in kg/(height in metres squared))
+
+diabetes:Diabetes pedigree function
+
+age: Age (years)
+
+test: test whether the patient shows signs of diabetes (coded 0 if negative, 1 if positive) (65 pts, 5 points each) 
+
+a-) Use 70% of the data for train data set and use remaining data (30% of data) for test data set (Please use set.seed(567)). (5 points)
+
+***Ans: ***
+
+
+```{R Prob 2a}
+library(faraway)
+data("pima")
+#View(pima)
+#help("pima")
+str(pima)
+#head(pima)
+
+library(caret)
+
+#Splitting the data into training and testing samples:
+set.seed(567)
+
+#Do 70/30 split, 70 for Train Data and 30 for Test Data.
+DataSplit = createDataPartition( y = pima$test, p = 0.7, list = FALSE )
+
+#Creating test and train data set
+PimaTrainData = pima[DataSplit, ]     
+PimaTestData = pima[-DataSplit, ] 
+#View(TrainData)
+
+
+#Checking if you have 70% test and 30% train 
+Num_observations = nrow(pima)
+Num_observations_train = nrow(PimaTrainData)
+Num_observations_test = nrow(PimaTestData)
+
+cat("Total # of obs:", Num_observations, "\n")
+cat("Total # of train data obs:", Num_observations_train, "\n")
+cat("Total # of test data obs:", Num_observations_test, "\n")
+
+
+# Show dimensions
+dim(PimaTrainData) # rows and columns
+dim(PimaTestData)
+
+
+```
+
+## use the train data set for the questions below
+
+b-) Fit a binary logistic regression with `test` as the response and the variables listed above as predictors on the training data set. Report the residual deviance and associated degrees of freedom. Can this information be used to determine whether this model fits the data? Explain. (5 points)
+
+***Ans: ***
+
+Because the response variable "test" indicates whether a patient shows signs of diabetes (1 = positive, 0 = negative), logistic regression is an appropriate modeling choice.
+
+Residual deviance: 502.99  on 529  degrees of freedom
+
+In logistic regression, the residual deviance plays the same role as the residual sum of squares in linear regression: it measures how far the fitted model is from a perfect (saturated) model. A smaller deviance indicates a better fit.
+
+If the model fits well, the residual deviance should be close to its degrees of freedom --> Residual Deviance is approx equal to Degrees of Freedom.
+
+Because 502.99 is reasonably close to 529, this does not suggest major lack of fit. However, this single number cannot guarantee that the model fits well everywhere.
+
+Therefore, while the deviance does not indicate a clear lack of fit, we cannot conclude that the model is adequate without additional diagnostics—such as Hosmer–Lemeshow tests, residual plots, etc. 
+
+```{R Prob 2b}
+# Fit full logistic regression on the training data
+Logistic_full_regression =  glm(test ~ ., data=PimaTrainData, family = binomial)
+
+summary(Logistic_full_regression)
+
+```
+
+c-) Use AIC as the criterion to determine the best subset of variables (use the `step` function). (5 points)
+
+***Ans: ***
+All of the predictor p-values are less than 0.05, so all the predictor variables are statistically significant, and nothing needs to be removed.
+
+Using the step() function with AIC as the selection criterion, the best model chosen is:
+
+test ~ pregnant + glucose + diastolic + bmi + diabetes + age 
+    
+The AIC value for this model is 518.44
+
+Residual deviance: 504.44  on 531  degrees of freedom
+
+Hosmer–Lemeshow Goodness of Fit Test:
+
+Null Hypothesis: If P > 0.05: The logistic regression model fits the data well.
+
+Alternative Hypothesis: If P <= 0.05 The logistic regression model does not fits the data well.
+
+p-value = 0.1881 > 0.05 so we fail to reject the null hypothesis. 
+
+This suggests that the model fits the data adequately.
+    
+    
+
+```{R Prob 2c}
+logistic_stepwsie = step(Logistic_full_regression, direction = "both")
+
+summary(logistic_stepwsie)
+
+### Hosmer-Lemeshow Goodness of Fit Test
+library(ResourceSelection)
+hoslem.test(logistic_stepwsie$y, fitted(logistic_stepwsie), g=10)
+#View(PimaTrainData)
+```
+
+d-) Using the reduced logistic regression model selected in part c, suppose that a case is classified as positive if $p > 0.5$ and negative if $p < 0.5$. Compute the confusion matrix and the accuracy rate when this method is applied to the training data. (5 points)
+
+***Ans: ***
+Definitions: 
+Recall (Sensitivity): TP / (TP + FN)
+Specificity: TN / (TN + FP)
+
+Recall = 121 / (121 + 73) = 0.6237
+The model struggles to identify positives
+
+Specificity = 300 / (300 + 44) = 0.87209
+The model is very good at identifying negatives
+
+From the confusion matrix, the model achieved an accuracy of 78.25%, with a Recall (sensitivity) of 62.37% and a specificity of 87.21%. The model performs moderately well on the training data. The accuracy is significantly higher than the No Information Rate (63.94%), with a very small p-value (4.7e-13 < 0.05), indicating that the model outperforms random guessing.
+
+
+Overall, the logistic regression model is a decent/moderate fit for the data set. 
+
+```{R Prob 2d}
+# class labels
+#actual_labels = factor(PimaTrainData$test, levels = c("0", "1"))
+str(PimaTrainData)
+#View(PimaTrainData)
+# It returns probabilities that the observations are "positive"/
+# making predictions:
+predicted_probabilities = predict(logistic_stepwsie, PimaTrainData, type = "response")
+
+# lets use .5 as a cutoff and Create confusion matrix
+predictions = ifelse(predicted_probabilities > 0.5, 1, 0)
+
+# Confusion Matrix:
+confusion_matrix = confusionMatrix(data = as.factor(predictions), 
+                  reference = as.factor(PimaTrainData$test), mode = "prec_recall", positive = "1")
+confusion_matrix
+
+
+```
+
+
+e-) Develop a classification tree for predicting a positive test result using the training data. Compute the confusion matrix and comment on the model accuracy. (10 pts)
+
+***Ans: ***
+
+From the CV plot, the lowest deviance occurs at tree size of 6, indicating the optimal level of complexity for pruning.
+
+Below are the performance results:
+
+Pruned Tree:
+Accuracy: 0.803
+Sensitivity (Recall): 0.5722
+Specificity: 0.9331
+P-Value [Acc > NIR] : < 2.2e-16 
+
+Unpruned Tree: 
+Accuracy : 0.816           
+P-Value [Acc > NIR] : < 2e-16          
+Sensitivity : 0.7268          
+Specificity : 0.8663                                    
+The full tree achieves higher accuracy and much higher sensitivity, meaning it identifies positive diabetes cases more effectively.              
+
+Pruning reduces the model's complexity, but in this case it reduces predictive performance on the training data. Since the full tree has higher accuracy and better balance between sensitivity and specificity, pruning is not needed here, and the unpruned tree is the better model on the training data.
+
+```{R Prob 2e}
+library(tree)
+library(caret)
+set.seed(567)
+
+PimaTrainData$test = factor(PimaTrainData$test, levels = c("0", "1"))
+# Full Tree Model: 
+tree_full_model = tree(test ~ ., data = PimaTrainData)
+
+# Performing Cv to find the optimal tree size: 
+cv_tree = cv.tree(tree_full_model, FUN = prune.misclass)
+
+par(mfrow = c(1, 2))
+plot(cv_tree$size, cv_tree$dev, type = "b")
+plot(cv_tree$k, cv_tree$dev, type = "b")
+
+# Note: Size 6 has the lowest CV error (lowest point on the plot)
+
+# Pruning tree with 6 terminal nodes: 
+# note: best tree size is found from looking at the left most node graph
+# and playign around. 
+prune_tree_model = prune.misclass(tree_full_model, best = 6)
+
+# Plot pruned tree: 
+plot(prune_tree_model)
+text(prune_tree_model, pretty = 0)
+
+# Predict classes on the train data: 
+Pruned_Predict_Train = predict(prune_tree_model, PimaTrainData, type = "class")
+
+#Confusion matrix for the Pruned Tree: 
+PrunedTreeconfusionMatrix = confusionMatrix(data = as.factor(Pruned_Predict_Train), 
+reference = as.factor(PimaTrainData$test),  positive = "1")
+cat("\n\n Pruned Tree: \n\n")
+PrunedTreeconfusionMatrix
+
+
+
+##### ---- For Full TREE Model ------- #####
+###Plotting the Full tree: 
+plot(tree_full_model)
+text(tree_full_model, pretty = 0) 
+
+# Predict classes on the train data: 
+Predict.Train = predict(tree_full_model, PimaTrainData, type = "class")
+
+#Confusion matrix: 
+TreeconfusionMatrix = confusionMatrix(data = as.factor(Predict.Train), 
+reference = as.factor(PimaTrainData$test),  positive = "1")
+cat("\n\n Full Tree Model: \n\n")
+
+TreeconfusionMatrix
+
+
+```
+
+
+f-) Use a neural network (NN) with two hidden layers with 6 and 4 neurons respectively (for example, `hidden = c(6, 4)`) for predicting a positive test result. Suppose that a case is classified as positive if $p > 0.5$ and negative if $p < 0.5$. Compute the confusion matrix and comment on the model performance. (10 pts)
+
+***Ans: ***
+Accuracy : 0.6394   
+P-Value [Acc > NIR] : 0.5196                       
+Sensitivity : 1.0000        
+Specificity : 0.0000                             
+ 
+The Neural Network has an error rate of 97.014009 and has taken 19 steps to converge. 
+The neural network does not perform well and is not reliable for classification. This can be seen since the accuracy rate is about 64%. It fails to distinguish between positive and negative test outcomes. Based on the results alone, NN would not be for this kind of data.  
+                                        
+                     
+                                        
+                
+
+```{R prob 2f}
+# install.packages("neuralnet")
+# install.packages("caret")
+library(neuralnet)
+library(caret)
+set.seed(567)
+
+### ----------------------------------------------------------------------
+###  TRAINING DATA BASED NORMALIZATION PARAMETERS
+### ----------------------------------------------------------------------
+
+#parameters (center/scale) on TRAINING data ONLY (Predictors 1-8)
+params = preProcess(PimaTrainData[, 1:8], method=c("center", "scale"))
+
+# Applyign standardization to train and test predictors
+PimaTrainData[, 1:8] = predict(params, PimaTrainData[, 1:8])
+PimaTestData[, 1:8]  = predict(params, PimaTestData[, 1:8])
+
+# Keep target variable ('test') as numeric 0/1
+PimaTrainData$test = as.numeric(PimaTrainData$test)
+PimaTestData$test  = as.numeric(PimaTestData$test)
+#View(PimaTestData)
+### ----------------------------------------------------------------------
+###  Fit Neural Network Model with two hidden layers 6 and 4
+### ----------------------------------------------------------------------
+
+NN_modelPima = neuralnet(
+  test ~ .,
+  data = PimaTrainData,
+  hidden = c(6,4), 
+  linear.output = FALSE,
+  stepmax = 1e6,
+  threshold = 0.02 )
+
+# Plot NN
+plot(NN_modelPima)
+
+
+### -----------------------------
+### Predictions on Train Data
+### -----------------------------
+
+
+# Training predictions
+nn_train_results = compute(NN_modelPima, PimaTrainData[, 1:8])
+nn_train_prob = nn_train_results$net.result
+
+# Convert to class labels
+nn_train_class = ifelse(nn_train_prob > 0.5, 1, 0)
+
+### ----------------------------------------
+### Confusion Matrix (MODEL PERFORMANCE)
+### --------------------------------------
+
+PimaConfusionMatrix_2f = confusionMatrix(
+  data = as.factor(nn_train_class),
+  reference = as.factor(PimaTrainData$test),
+  positive = "1"
+)
+PimaConfusionMatrix_2f
+
+```
+
+
+g-) Based on the performance of the models on the training data set, which model would you choose? (5 pts)
+
+***Ans: ***
+Logistic Regression Model results: 
+From the confusion matrix, the model achieved an accuracy of 78.25%, with a Recall (sensitivity) of 62.37% and a specificity of 87.21%. The model performs moderately well on the training data. The accuracy is significantly higher than the No Information Rate (63.94%), with a very small p-value (4.7e-13 < 0.05), indicating that the model outperforms random guessing.
+
+Classification Tree results: 
+Unpruned Tree: 
+Accuracy : 0.816           
+P-Value [Acc > NIR] : < 2e-16          
+Sensitivity : 0.7268          
+Specificity : 0.8663   
+
+NN results: 
+Accuracy : 0.6394   
+P-Value [Acc > NIR] : 0.5196                       
+Sensitivity : 1.0000        
+Specificity : 0.0000  
+
+Champion: 
+The Classification Tree is the best-performing model because it achieves the highest accuracy, maintains strong sensitivity and specificity. It provides the most reliable overall performance on the training data.
+
+
+## use the test data set for the questions below 
+
+h-) Compute the confusion matrix of the logistic regression model built on the training data using $p = 0.5$ as a cutoff. Is the model performance stable? (5 pts)
+
+***Ans: ***
+Test Data:
+Accuracy : 0.6783          
+No Information Rate : 0.6783          
+P-Value [Acc > NIR] : 0.5314                  
+Sensitivity : 0.0000          
+Specificity : 1.0000            
+                    
+Train Data: 
+Accuracy : 78.25%         
+No Information Rate : 63.94%          
+P-Value [Acc > NIR] : 4.707e-13                      
+Sensitivity : 62.37%          
+Specificity : 87.21% 
+
+
+The model performance is not stable.
+It performs much worse on the test data, accuracy drops, and sensitivity collapses to 0, meaning it fails to detect any positive cases. This shows poor generalization and likely over fitting on the training set.
+
+            
+```{R Prob 2h}
+
+#From part 2c: 
+###########################################################################
+# Fit stepwise reduced logistic regression on the training data
+#logistic_stepwsie = step(Logistic_full_regression, direction = "both")
+
+###########################################################################
+
+# Predict probabilities on Test Data: 
+
+logistic_prob = predict(logistic_stepwsie, newdata = PimaTestData, type = "response")
+View(PimaTestData)
+str(PimaTestData)
+# converting probabilities into 0 or 1 predictions using p = 0.5 as a cutoff: 
+
+logistic_test_class = ifelse(logistic_prob > 0.5, 1, 0)
+# View(logistic_test_class)
+
+# Actual outcome from the Test Data: 
+actual_test_class = PimaTestData$test
+
+###########################################################################
+# Confusion Matrix: 
+###########################################################################
+library(caret)
+
+### data = predicted, and reference = actual ###
+LogisticConfusionMatrix = confusionMatrix(data = as.factor(logistic_test_class), 
+                      reference = as.factor(actual_test_class) , positive = "1")
+  
+LogisticConfusionMatrix
+
+```
+
+i-) Compute the confusion matrix of the classification tree built in part e. Is the model performance stable? (5 pts)
+
+***Ans: ***
+Test Data: 
+Accuracy : 0.6783
+No Information Rate : 0.6783
+P-Value [Acc > NIR] : 0.5314 
+Sensitivity : 0.0000 
+Specificity : 1.0000 
+
+Train Data: 
+Unpruned Tree: 
+Accuracy : 0.816 
+No Information Rate : 0.6394          
+P-Value [Acc > NIR] : < 2e-16          
+Sensitivity : 0.7268          
+Specificity : 0.8663  
+
+The model performance is not stable.
+It performs much worse on the test data, accuracy drops, and sensitivity collapses to 0, meaning it fails to detect any positive cases. This shows poor generalization and likely over fitting on the training set.
+
+
+
+```{R Prob 2i}
+## # Full Tree Model: 
+## tree_full_model = tree(test ~ ., data = PimaTrainData)
+
+PimaTestData$test = as.factor(PimaTestData$test)
+
+# Predict class labels on the TEST data: 
+Predict.Test = predict(tree_full_model, PimaTestData, type = "class")
+#summary(Predict.Train)
+
+#Confusion matrix: 
+# Error: `data` and `reference` should be factors with the same levels. 
+# to fix this error I have used as.factor so that R considers them as categories and not numbers.
+# as.factor() tells R to treat a variable as categorical like (benign or malignant), 
+# not numbers (like 0 and 1).
+
+TestConfusionMatrix = confusionMatrix(data = as.factor (Predict.Test), reference = as.factor (PimaTestData$test), positive = "1" )
+TestConfusionMatrix
+
+```
+
+j-) Compute the confusion matrix of the neural network (NN) model built in part f using $p = 0.5$ as a cutoff. Is the model performance stable? (5 pts)
+
+***Ans: ***
+Test: 
+Accuracy : 0.3217
+No Information Rate : 0.6783
+P-Value [Acc > NIR] : 1
+Sensitivity : 1.0000          
+Specificity : 0.0000
+
+Train from 2f: 
+Accuracy : 0.6394   
+P-Value [Acc > NIR] : 0.5196                       
+Sensitivity : 1.0000        
+Specificity : 0.0000  
+
+The neural network model’s performance is not stable. Although it achieves perfect sensitivity on both the training and test sets (detecting all positive cases), its accuracy drops substantially when applied to the test data, and its specificity falls to zero. This means the model predicts almost everything as positive. The large gap between the training accuracy (about 0.64) and the much lower test accuracy (about 0.32) indicates that the model is overfitting the training data and failing to generalize to unseen observations. Overall, the unstable accuracy, unchanged sensitivity, and severe loss in specificity confirm that the neural network does not perform reliably on new data.
+
+
+```{R Prob 2j}
+library(neuralnet)
+library(caret)
+set.seed(567)
+
+### ----------------------------------------------
+### Predictions of probabilities on Test Data
+### ----------------------------------------------
+
+NN_test_results = compute(NN_modelPima, PimaTestData[ ,1:8])
+prediction_test_probabilities = NN_test_results$net.result
+
+# Convert to class labels, lets use .5 as a cutoff and Create confusion matrix
+prediction_test_class = ifelse(prediction_test_probabilities > 0.5, 1, 0)
+
+### ----------------------------------------
+###  Confusion Matrix (MODEL PERFORMANCE) on TEST DATA:
+### ---------------------------------------
+
+PimaConfusionMatrix_2j = confusionMatrix(
+  data = as.factor(prediction_test_class),
+  reference = as.factor(PimaTestData$test),
+  positive = "1")
+
+PimaConfusionMatrix_2j
+
+```
+
+k-) Based on the performance on the test data set, which model would you choose? (5 pts)
+
+***Ans: ***
+Logistic Regression Model: 
+Test Data:
+Accuracy : 0.6783          
+No Information Rate : 0.6783          
+P-Value [Acc > NIR] : 0.5314                  
+Sensitivity : 0.0000          
+Specificity : 1.0000  
+
+Classification Tree: 
+Test Data: 
+Accuracy : 0.6783
+No Information Rate : 0.6783
+P-Value [Acc > NIR] : 0.5314 
+Sensitivity : 0.0000 
+Specificity : 1.0000 
+
+NN: 
+Test: 
+Accuracy : 0.3217
+No Information Rate : 0.6783
+P-Value [Acc > NIR] : 1
+Sensitivity : 1.0000          
+Specificity : 0.0000
+
+Based on the performance on the test data set, the logistic regression model and the classification tree model clearly outperform the neural network. Both logistic regression and the tree achieve an accuracy of 0.6783 or about 68%, which matches the No Information Rate, while the neural network performs extremely poorly with an accuracy of 0.3217 or about 32% and a specificity of 0, indicating severe overfitting. 
+
+Although logistic regression and the tree have similar accuracy and sensitivity/specificity profiles, logistic regression is typically more stable and less prone to overfitting, especially with small datasets like Pima. Therefore, I would choose the logistic regression model as the best-performing and most reliable model on the test data. The second best model would be the classification model due to the aforementioned reasons. 
