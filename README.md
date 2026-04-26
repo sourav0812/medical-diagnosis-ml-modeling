@@ -3,7 +3,7 @@
 ## Overview
 An R-based machine learning and statistical modeling project that applies classification algorithms and neural networks to real-world medical datasets (breast cancer diagnosis and prostate cancer PSA prediction). The project evaluates multiple models, optimizes decision thresholds, and uses statistical validation techniques to select the best-performing model.
 
-📊 Built as part of Harvard Extension School Data Science coursework
+📊 Built as part of Harvard's Data Science coursework
 
 ## Skills & Tools
 - R (caret, neuralnet)
